@@ -2,8 +2,8 @@
 """
 Kimi Writing Agent - An autonomous agent for creative writing tasks.
 
-This agent uses the kimi-k2-thinking model to create novels, books, 
-and short story collections based on user prompts.
+This agent uses OpenRouter to access various AI models for creating novels, 
+books, and short story collections based on user prompts.
 """
 
 import os
@@ -30,7 +30,6 @@ from tools.compression import compress_context_impl
 MAX_ITERATIONS = 300
 TOKEN_LIMIT = 200000
 COMPRESSION_THRESHOLD = 180000  # Trigger compression at 90% of limit
-MODEL_NAME = "kimi-k2-thinking"
 BACKUP_INTERVAL = 50  # Save backup summary every N iterations
 
 
@@ -67,10 +66,10 @@ def get_user_input() -> tuple[str, bool]:
         epilog="""
 Examples:
   # Fresh start with inline prompt
-  python kimi-writer.py "Create a collection of sci-fi short stories"
+  python ai-writer.py "Create a collection of sci-fi short stories"
   
   # Recovery mode from previous context
-  python kimi-writer.py --recover my_project/.context_summary_20250107_143022.md
+  python ai-writer.py --recover my_project/.context_summary_20250107_143022.md
         """
     )
     
@@ -171,23 +170,28 @@ def convert_message_for_api(msg: Any) -> Dict[str, Any]:
 def main():
     """Main agent loop."""
     
-    # Get API key
-    api_key = os.getenv("MOONSHOT_API_KEY")
+    # Get API key for OpenRouter
+    api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
-        print("Error: MOONSHOT_API_KEY environment variable not set.")
-        print("Please set your API key: export MOONSHOT_API_KEY='your-key-here'")
+        print("Error: OPENROUTER_API_KEY environment variable not set.")
+        print("Please set your API key in .env file")
+        print("Get your key at: https://openrouter.ai/keys")
         sys.exit(1)
     
-    base_url = os.getenv("MOONSHOT_BASE_URL", "https://api.moonshot.ai/v1")
+    # Get model name from environment or use default
+    model_name = os.getenv("MODEL_NAME", "anthropic/claude-3.5-sonnet")
+    
+    base_url = "https://openrouter.ai/api/v1"
     
     # Debug: Show that key is loaded (masked for security)
     if len(api_key) > 8:
         print(f"✓ API Key loaded: {api_key[:4]}...{api_key[-4:]}")
     else:
         print(f"⚠️  Warning: API key seems too short ({len(api_key)} chars)")
-    print(f"✓ Base URL: {base_url}\n")
+    print(f"✓ Base URL: {base_url}")
+    print(f"✓ Model: {model_name}\n")
     
-    # Initialize OpenAI client
+    # Initialize OpenAI client for OpenRouter
     client = OpenAI(
         api_key=api_key,
         base_url=base_url,
@@ -221,7 +225,7 @@ def main():
     print("=" * 60)
     print("Starting Kimi Writing Agent")
     print("=" * 60)
-    print(f"Model: {MODEL_NAME}")
+    print(f"Model: {model_name}")
     print(f"Max iterations: {MAX_ITERATIONS}")
     print(f"Context limit: {TOKEN_LIMIT:,} tokens")
     print(f"Auto-compression at: {COMPRESSION_THRESHOLD:,} tokens")
@@ -233,10 +237,12 @@ def main():
         print(f"Iteration {iteration}/{MAX_ITERATIONS}")
         print(f"{'─' * 60}")
         
-        # Check token count before making API call
+        # Estimate token count (rough approximation)
         try:
-            token_count = estimate_token_count(base_url, api_key, MODEL_NAME, messages)
-            print(f"📊 Current tokens: {token_count:,}/{TOKEN_LIMIT:,} ({token_count/TOKEN_LIMIT*100:.1f}%)")
+            # Simple token estimation: ~4 chars per token
+            total_chars = sum(len(str(msg.get('content', ''))) for msg in messages)
+            token_count = total_chars // 4
+            print(f"📊 Estimated tokens: ~{token_count:,}/{TOKEN_LIMIT:,} ({token_count/TOKEN_LIMIT*100:.1f}%)")
             
             # Trigger compression if approaching limit
             if token_count >= COMPRESSION_THRESHOLD:
@@ -244,7 +250,7 @@ def main():
                 compression_result = compress_context_impl(
                     messages=messages,
                     client=client,
-                    model=MODEL_NAME,
+                    model=model_name,
                     keep_recent=10
                 )
                 
@@ -254,8 +260,9 @@ def main():
                     print(f"✓ Estimated tokens saved: ~{compression_result.get('tokens_saved', 0):,}")
                     
                     # Recalculate token count
-                    token_count = estimate_token_count(base_url, api_key, MODEL_NAME, messages)
-                    print(f"📊 New token count: {token_count:,}/{TOKEN_LIMIT:,}\n")
+                    total_chars = sum(len(str(msg.get('content', ''))) for msg in messages)
+                    token_count = total_chars // 4
+                    print(f"📊 New estimated tokens: ~{token_count:,}/{TOKEN_LIMIT:,}\n")
         
         except Exception as e:
             print(f"⚠️  Warning: Could not estimate token count: {e}")
@@ -268,7 +275,7 @@ def main():
                 compression_result = compress_context_impl(
                     messages=messages,
                     client=client,
-                    model=MODEL_NAME,
+                    model=model_name,
                     keep_recent=len(messages)  # Keep all messages, just save summary
                 )
                 if compression_result.get("summary_file"):
@@ -278,10 +285,10 @@ def main():
         
         # Call the model
         try:
-            print("🤖 Calling kimi-k2-thinking model...\n")
+            print(f"🤖 Calling {model_name}...\n")
             
             stream = client.chat.completions.create(
-                model=MODEL_NAME,
+                model=model_name,
                 messages=messages,
                 max_tokens=65536,  # 64K tokens
                 tools=tools,
@@ -456,7 +463,7 @@ def main():
                         result_data = compress_context_impl(
                             messages=messages,
                             client=client,
-                            model=MODEL_NAME,
+                            model=model_name,
                             keep_recent=10
                         )
                         result = result_data.get("message", "Compression completed")
@@ -490,13 +497,13 @@ def main():
                 compression_result = compress_context_impl(
                     messages=messages,
                     client=client,
-                    model=MODEL_NAME,
+                    model=model_name,
                     keep_recent=len(messages)
                 )
                 if compression_result.get("summary_file"):
                     print(f"✓ Context saved to: {compression_result['summary_file']}")
                     print(f"\nTo resume, run:")
-                    print(f"  python kimi-writer.py --recover {compression_result['summary_file']}")
+                    print(f"  python ai-writer.py --recover {compression_result['summary_file']}")
             except:
                 pass
             sys.exit(0)
@@ -518,13 +525,13 @@ def main():
             compression_result = compress_context_impl(
                 messages=messages,
                 client=client,
-                model=MODEL_NAME,
+                model=model_name,
                 keep_recent=len(messages)
             )
             if compression_result.get("summary_file"):
                 print(f"✓ Context saved to: {compression_result['summary_file']}")
                 print(f"\nTo resume, run:")
-                print(f"  python kimi-writer.py --recover {compression_result['summary_file']}")
+                print(f"  python ai-writer.py --recover {compression_result['summary_file']}")
         except Exception as e:
             print(f"✗ Error saving context: {e}")
 

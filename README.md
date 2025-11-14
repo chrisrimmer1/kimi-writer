@@ -1,6 +1,6 @@
 # Kimi Writing Agent
 
-An autonomous agent powered by the **kimi-k2-thinking** model for creating novels, books, and short story collections.
+An autonomous agent powered by **OpenRouter** for creating novels, books, and short story collections using any AI model you choose.
 
 ## Features
 
@@ -37,23 +37,25 @@ uv pip install -r requirements.txt
 pip install -r requirements.txt
 ```
 
-2. Configure your API key:
+2. Configure your OpenRouter settings:
 
-Create a `.env` file with your API key:
+Create a `.env` file with your API key and chosen model:
 ```bash
-# Copy the example file
-cp env.example .env
-
-# Edit .env and add your API key
-# The file should contain:
-MOONSHOT_API_KEY=your-api-key-here
+OPENROUTER_API_KEY=your-api-key-here
+MODEL_NAME=anthropic/claude-3.5-sonnet
 ```
 
-**Optional:** Set custom base URL (defaults to https://api.moonshot.ai/v1):
-```bash
-# Add to your .env file:
-MOONSHOT_BASE_URL=https://api.moonshot.ai/v1
-```
+Get your free API key at: https://openrouter.ai/keys
+
+**Popular model options:**
+- `anthropic/claude-3.5-sonnet` (recommended - excellent creative writing)
+- `openai/gpt-4-turbo` (strong all-around)
+- `google/gemini-pro-1.5` (very long contexts)
+- `qwen/qwen-2.5-72b-instruct` (budget-friendly)
+
+See all available models at: https://openrouter.ai/models
+
+**Note:** If you don't set `MODEL_NAME`, it defaults to Claude 3.5 Sonnet
 
 ## Usage
 
@@ -62,16 +64,16 @@ MOONSHOT_BASE_URL=https://api.moonshot.ai/v1
 Run with an inline prompt:
 ```bash
 # Using uv (recommended)
-uv run kimi-writer.py "Create a collection of 5 sci-fi short stories about AI"
+uv run ai-writer.py "Create a collection of 5 sci-fi short stories about AI"
 
 # Or using python directly
-python kimi-writer.py "Create a collection of 5 sci-fi short stories about AI"
+python ai-writer.py "Create a collection of 5 sci-fi short stories about AI"
 ```
 
 Or run interactively:
 ```bash
-uv run kimi-writer.py
-# or: python kimi-writer.py
+uv run ai-writer.py
+# or: python ai-writer.py
 ```
 Then enter your prompt when asked.
 
@@ -79,8 +81,8 @@ Then enter your prompt when asked.
 
 If the agent is interrupted or you want to continue previous work:
 ```bash
-uv run kimi-writer.py --recover output/my_project/.context_summary_20250107_143022.md
-# or: python kimi-writer.py --recover output/my_project/.context_summary_20250107_143022.md
+uv run ai-writer.py --recover output/my_project/.context_summary_20250107_143022.md
+# or: python ai-writer.py --recover output/my_project/.context_summary_20250107_143022.md
 ```
 
 ## How It Works
@@ -99,7 +101,7 @@ The agent has access to three tools:
 ### The Agentic Loop
 
 1. The agent receives your prompt
-2. It reasons about the task using kimi-k2-thinking
+2. It reasons about the task using your chosen AI model
 3. It decides which tools to call and executes them
 4. It reviews the results and continues until the task is complete
 5. Maximum 300 iterations with automatic context compression
@@ -115,7 +117,7 @@ The agent has access to three tools:
 
 ```
 kimi-writer/
-├── kimi-writer.py        # Main agent
+├── ai-writer.py          # Main agent
 ├── tools/
 │   ├── __init__.py       # Tool registry
 │   ├── writer.py         # File writing tool
@@ -141,17 +143,17 @@ output/                   # All AI-generated projects go here
 
 ### Example 1: Novel
 ```bash
-uv run kimi-writer.py "Write a mystery novel set in Victorian London with 10 chapters"
+uv run ai-writer.py "Write a mystery novel set in Victorian London with 10 chapters"
 ```
 
 ### Example 2: Short Story Collection
 ```bash
-uv run kimi-writer.py "Create 7 interconnected sci-fi short stories exploring the theme of memory"
+uv run ai-writer.py "Create 7 interconnected sci-fi short stories exploring the theme of memory"
 ```
 
 ### Example 3: Book
 ```bash
-uv run kimi-writer.py "Write a comprehensive guide to Python programming with 15 chapters"
+uv run ai-writer.py "Write a comprehensive guide to Python programming with 15 chapters"
 ```
 
 ## Advanced Features
@@ -186,16 +188,16 @@ Press `Ctrl+C` to interrupt. The agent will save the current context for recover
 
 ## Troubleshooting
 
-### "MOONSHOT_API_KEY environment variable not set"
+### "OPENROUTER_API_KEY environment variable not set"
 Make sure you have created a `.env` file in the project root with your API key:
 ```bash
-MOONSHOT_API_KEY=your-actual-api-key-here
+OPENROUTER_API_KEY=your-actual-api-key-here
 ```
 
 ### "401 Unauthorized" or Authentication errors
 - Verify your API key is correct in the `.env` file
-- Make sure you're using the correct base URL: `https://api.moonshot.ai/v1`
-- Get your API key from: https://platform.moonshot.cn/
+- Get your API key from: https://openrouter.ai/keys
+- Make sure you have credits on your OpenRouter account
 
 ### "Error creating project folder"
 Check write permissions in the current directory
@@ -208,14 +210,26 @@ The agent automatically compresses context at 180K tokens. If you see compressio
 
 ## Technical Details
 
-- **Model**: kimi-k2-thinking
-- **Temperature**: 1.0 (optimized for this model)
+- **API**: OpenRouter (https://openrouter.ai)
+- **Model**: Configurable via .env file
+- **Temperature**: 1.0
 - **Max Tokens per Call**: 65,536 (64K)
 - **Context Window**: 200,000 tokens
 - **Max Iterations**: 300
 - **Compression Threshold**: 180,000 tokens
 
-You can customize this as you please. 
+## Supported Models
+
+You can use any model available on OpenRouter, including:
+- **Claude 3.5 Sonnet** (`anthropic/claude-3.5-sonnet`) - Excellent for creative writing
+- **GPT-4 Turbo** (`openai/gpt-4-turbo`) - Strong all-around performance
+- **Gemini Pro 1.5** (`google/gemini-pro-1.5`) - Google's latest
+- **Llama 3.1 70B** (`meta-llama/llama-3.1-70b-instruct`) - Open source option
+- **Qwen 2.5 72B** (`qwen/qwen-2.5-72b-instruct`) - Strong reasoning
+
+Browse all models at: https://openrouter.ai/models
+
+To switch models, simply change `MODEL_NAME` in your `.env` file. 
 
 ## License
 
@@ -223,12 +237,12 @@ MIT License with Attribution Requirement - see [LICENSE](LICENSE) file for detai
 
 **Commercial Use**: If you use this software in a commercial product, you must provide clear attribution to Pietro Schirano (@Doriandarko).
 
-**API Usage**: This project uses the Moonshot AI API. Please refer to Moonshot AI's terms of service for API usage guidelines.
+**API Usage**: This project uses OpenRouter. Please refer to OpenRouter's terms of service for API usage guidelines.
 
 ## Credits
 
 - **Created by**: Pietro Schirano ([@Doriandarko](https://github.com/Doriandarko))
-- **Powered by**: Moonshot AI's kimi-k2-thinking model
+- **Powered by**: OpenRouter - Access to multiple AI models
 - **Repository**: https://github.com/Doriandarko/kimi-writer
 
 ## Star History
